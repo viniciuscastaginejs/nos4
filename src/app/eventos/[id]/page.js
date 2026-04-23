@@ -41,14 +41,44 @@ export default function EventoPage() {
     </div>
   )
 
+  const hasTicket = event.ticket_link || event.vip_link
+
   return (
     <main style={{ minHeight: '100vh', background: '#0a0a0a', color: '#fff', fontFamily: "'DM Sans', sans-serif" }}>
       <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;700&display=swap" rel="stylesheet" />
       <style>{`
-        .evento-grid { display: grid; grid-template-columns: 1fr 340px; gap: 3rem; align-items: start; }
+        .evento-grid { display: grid; grid-template-columns: 1fr 360px; gap: 3rem; align-items: start; }
         @media (max-width: 768px) { .evento-grid { grid-template-columns: 1fr; gap: 2rem; } }
         .header { display: flex; align-items: center; justify-content: space-between; padding: 1rem 2.5rem; border-bottom: 1px solid rgba(245,168,0,0.2); background: #0a0a0a; position: sticky; top: 0; z-index: 100; }
         @media (max-width: 768px) { .header { padding: 0.75rem 1.25rem; } }
+        .ticket-cta {
+          display: block; text-align: center; padding: 1.1rem 1.5rem;
+          background: #F5A800; color: #000;
+          text-decoration: none; font-weight: '800'; font-size: '0.9rem';
+          letter-spacing: 0.15em; font-weight: 800;
+          transition: background 0.2s, transform 0.2s;
+          position: relative; overflow: hidden;
+        }
+        .ticket-cta:hover { background: #ffc62b; transform: translateY(-1px); }
+        .ticket-cta::after {
+          content: ''; position: absolute; inset: 0;
+          background: linear-gradient(135deg, rgba(255,255,255,0.15) 0%, transparent 60%);
+          pointer-events: none;
+        }
+        .vip-cta {
+          display: block; text-align: center; padding: 0.9rem 1.5rem;
+          background: transparent; color: #F5A800;
+          text-decoration: none; font-weight: 700; font-size: 0.85rem;
+          letter-spacing: 0.15em; border: 1px solid rgba(245,168,0,0.5);
+          transition: background 0.2s, border-color 0.2s;
+        }
+        .vip-cta:hover { background: rgba(245,168,0,0.08); border-color: #F5A800; }
+        @keyframes pulse-ring {
+          0% { box-shadow: 0 0 0 0 rgba(245,168,0,0.4); }
+          70% { box-shadow: 0 0 0 10px rgba(245,168,0,0); }
+          100% { box-shadow: 0 0 0 0 rgba(245,168,0,0); }
+        }
+        .ticket-pulse { animation: pulse-ring 2s infinite; }
       `}</style>
 
       <header className="header">
@@ -91,6 +121,33 @@ export default function EventoPage() {
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+
+            {/* ── BOTÕES DE INGRESSO — PRIMEIRO E EM DESTAQUE ── */}
+            {hasTicket && (
+              <div style={{ border: '1px solid rgba(245,168,0,0.25)', background: 'rgba(245,168,0,0.04)', padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                <p style={{ fontSize: '0.6rem', letterSpacing: '0.35em', color: '#F5A800', textTransform: 'uppercase', marginBottom: '0.25rem' }}>Garanta seu ingresso</p>
+                {event.ticket_link && (
+                  <a href={event.ticket_link} target="_blank" className="ticket-cta ticket-pulse">
+                    🎟 COMPRAR INGRESSO
+                  </a>
+                )}
+                {event.vip_link && (
+                  <a href={event.vip_link} target="_blank" className="vip-cta">
+                    ⭐ ENTRAR NA LISTA VIP
+                  </a>
+                )}
+              </div>
+            )}
+
+            {/* ── CÓDIGO PROMO ── */}
+            {event.promo_code && (
+              <div style={{ background: 'rgba(245,168,0,0.08)', border: '1px solid rgba(245,168,0,0.3)', padding: '1rem' }}>
+                <p style={{ fontSize: '0.6rem', letterSpacing: '0.3em', color: '#F5A800', textTransform: 'uppercase', marginBottom: '0.4rem' }}>Código promocional</p>
+                <p style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '2rem', letterSpacing: '0.1em', margin: 0 }}>{event.promo_code}</p>
+              </div>
+            )}
+
+            {/* ── STATUS ── */}
             <div style={{ padding: '0.75rem 1rem', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: statusLabel[event.status]?.color || '#888', flexShrink: 0 }} />
               <span style={{ fontSize: '0.8rem', fontWeight: '700', color: statusLabel[event.status]?.color || '#888', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
@@ -98,6 +155,7 @@ export default function EventoPage() {
               </span>
             </div>
 
+            {/* ── DETALHES DO EVENTO ── */}
             <div style={{ padding: '1rem', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
               {event.date && (
                 <div style={{ display: 'flex', gap: '0.75rem' }}>
@@ -122,23 +180,6 @@ export default function EventoPage() {
               )}
             </div>
 
-            {event.promo_code && (
-              <div style={{ background: 'rgba(245,168,0,0.08)', border: '1px solid rgba(245,168,0,0.3)', padding: '1rem' }}>
-                <p style={{ fontSize: '0.6rem', letterSpacing: '0.3em', color: '#F5A800', textTransform: 'uppercase', marginBottom: '0.4rem' }}>Código promocional</p>
-                <p style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '2rem', letterSpacing: '0.1em', margin: 0 }}>{event.promo_code}</p>
-              </div>
-            )}
-
-            {event.vip_link && (
-              <a href={event.vip_link} target="_blank" style={{ display: 'block', textAlign: 'center', padding: '1rem', background: '#F5A800', color: '#000', textDecoration: 'none', fontWeight: '700', fontSize: '0.85rem', letterSpacing: '0.15em' }}>
-                ENTRAR NA LISTA VIP
-              </a>
-            )}
-            {event.ticket_link && (
-              <a href={event.ticket_link} target="_blank" style={{ display: 'block', textAlign: 'center', padding: '1rem', background: 'transparent', color: '#fff', textDecoration: 'none', fontWeight: '700', fontSize: '0.85rem', letterSpacing: '0.15em', border: '1px solid rgba(255,255,255,0.2)' }}>
-                COMPRAR INGRESSO
-              </a>
-            )}
           </div>
         </div>
       </div>
