@@ -11,14 +11,33 @@ const statusLabel = {
   esgotado: { label: 'ESGOTADO', color: '#ef4444' }
 }
 
+const EVENTS_PER_PAGE = 12
+
+function getMonthLabel(dateStr) {
+  const d = new Date(dateStr + 'T00:00:00')
+  return d.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })
+}
+
+function getMonthKey(dateStr) {
+  const d = new Date(dateStr + 'T00:00:00')
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+}
+
 export default function Home() {
   const [events, setEvents] = useState([])
   const [loading, setLoading] = useState(true)
   const [heroImg, setHeroImg] = useState(0)
+  const [selectedMonth, setSelectedMonth] = useState('todos')
+  const [currentPage, setCurrentPage] = useState(1)
 
   useEffect(() => {
     async function fetchEvents() {
-      const { data } = await supabase.from('events').select('*').order('date', { ascending: true })
+      const today = new Date().toISOString().split('T')[0]
+      const { data } = await supabase
+        .from('events')
+        .select('*')
+        .gte('date', today)
+        .order('date', { ascending: true })
       setEvents(data || [])
       setLoading(false)
     }
@@ -28,6 +47,23 @@ export default function Home() {
   }, [])
 
   const heroImgs = ['/foto1.jpg', '/foto2.jpg', '/foto3.jpg']
+
+  // Meses disponíveis
+  const months = ['todos', ...Array.from(new Set(events.map(e => getMonthKey(e.date))))]
+
+  // Filtra por mês
+  const filtered = selectedMonth === 'todos'
+    ? events
+    : events.filter(e => getMonthKey(e.date) === selectedMonth)
+
+  // Paginação
+  const totalPages = Math.ceil(filtered.length / EVENTS_PER_PAGE)
+  const paginated = filtered.slice((currentPage - 1) * EVENTS_PER_PAGE, currentPage * EVENTS_PER_PAGE)
+
+  function handleMonthChange(month) {
+    setSelectedMonth(month)
+    setCurrentPage(1)
+  }
 
   return (
     <main style={{ minHeight: '100vh', background: '#080808', color: '#fff', fontFamily: "'DM Sans', sans-serif", overflowX: 'hidden' }}>
@@ -46,7 +82,7 @@ export default function Home() {
           backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
         }
         .hero {
-          position: relative; height: 85vh; min-height: 500px;
+          position: relative; height: 80vh; min-height: 480px;
           display: flex; align-items: center; justify-content: center;
           overflow: hidden; z-index: 1;
         }
@@ -57,9 +93,15 @@ export default function Home() {
         }
         .hero-overlay {
           position: absolute; inset: 0;
-          background: linear-gradient(to bottom, rgba(8,8,8,0.3) 0%, rgba(8,8,8,0.5) 50%, rgba(8,8,8,0.95) 100%);
+          background: linear-gradient(to bottom, rgba(8,8,8,0.3) 0%, rgba(8,8,8,0.5) 50%, rgba(8,8,8,0.98) 100%);
         }
         .hero-content { position: relative; z-index: 2; text-align: center; padding: 2rem; }
+        .scroll-hint {
+          position: absolute; bottom: 1.5rem; left: 50%; transform: translateX(-50%);
+          z-index: 3; display: flex; flex-direction: column; align-items: center; gap: 0.4rem;
+          animation: bounce 2s infinite;
+        }
+        @keyframes bounce { 0%, 100% { transform: translateX(-50%) translateY(0); } 50% { transform: translateX(-50%) translateY(6px); } }
         .event-card {
           background: #111; border: 1px solid rgba(255,255,255,0.06);
           overflow: hidden; cursor: pointer;
@@ -90,6 +132,26 @@ export default function Home() {
         .gallery-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.5rem; }
         .gallery-img { width: 100%; height: 220px; object-fit: cover; filter: brightness(0.7) saturate(0.8); transition: filter 0.4s, transform 0.4s; cursor: pointer; display: block; }
         .gallery-img:hover { filter: brightness(0.9) saturate(1.1); transform: scale(1.02); }
+        .month-filter { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+        .month-btn {
+          padding: 0.4rem 1rem; border: 1px solid rgba(255,255,255,0.12);
+          background: transparent; color: rgba(255,255,255,0.45);
+          font-size: 0.7rem; font-weight: 600; letter-spacing: 0.08em;
+          cursor: pointer; transition: all 0.2s; font-family: inherit;
+          text-transform: capitalize;
+        }
+        .month-btn:hover { border-color: rgba(245,168,0,0.4); color: #F5A800; }
+        .month-btn.active { background: #F5A800; color: #000; border-color: #F5A800; }
+        .pagination { display: flex; gap: 0.5rem; justify-content: center; margin-top: 2.5rem; flex-wrap: wrap; }
+        .page-btn {
+          width: 36px; height: 36px; display: flex; align-items: center; justify-content: center;
+          border: 1px solid rgba(255,255,255,0.12); background: transparent;
+          color: rgba(255,255,255,0.5); font-size: 0.8rem; font-weight: 600;
+          cursor: pointer; transition: all 0.2s; font-family: inherit;
+        }
+        .page-btn:hover { border-color: rgba(245,168,0,0.4); color: #F5A800; }
+        .page-btn.active { background: #F5A800; color: #000; border-color: #F5A800; }
+        .page-btn:disabled { opacity: 0.3; cursor: not-allowed; }
         @media (max-width: 1100px) { .events-grid { grid-template-columns: repeat(3, 1fr); } }
         @media (max-width: 768px) {
           .events-grid { grid-template-columns: repeat(2, 1fr); }
@@ -114,6 +176,7 @@ export default function Home() {
         </div>
       </header>
 
+      {/* HERO — menor para eventos aparecerem logo abaixo do fold */}
       <div className="hero">
         {heroImgs.map((img, i) => (
           <div key={img} className="hero-img" style={{ backgroundImage: `url(${img})`, opacity: heroImg === i ? 1 : 0 }} />
@@ -133,8 +196,96 @@ export default function Home() {
             ))}
           </div>
         </div>
+        {/* Scroll hint */}
+        <div className="scroll-hint">
+          <span style={{ fontSize: '0.6rem', letterSpacing: '0.3em', color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase' }}>ver eventos</span>
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 3v10M8 13l-4-4M8 13l4-4" stroke="rgba(245,168,0,0.6)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+        </div>
       </div>
 
+      {/* EVENTOS — antes do banner WhatsApp */}
+      <section id="eventos" style={{ maxWidth: '1280px', margin: '0 auto', padding: '3rem 2rem', position: 'relative', zIndex: 1 }}>
+        <div style={{ marginBottom: '2rem', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1.5rem' }}>
+          <div>
+            <p style={{ fontSize: '0.6rem', letterSpacing: '0.4em', color: '#F5A800', textTransform: 'uppercase', marginBottom: '0.5rem' }}>NOS4 Produções</p>
+            <h2 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 'clamp(2rem, 4vw, 3rem)', letterSpacing: '0.05em', color: '#fff', margin: '0 0 1.25rem' }}>Próximos Eventos</h2>
+            {/* Filtro por mês */}
+            <div className="month-filter">
+              {months.map(m => (
+                <button
+                  key={m}
+                  className={`month-btn${selectedMonth === m ? ' active' : ''}`}
+                  onClick={() => handleMonthChange(m)}
+                >
+                  {m === 'todos' ? 'Todos' : getMonthLabel(m + '-01')}
+                </button>
+              ))}
+            </div>
+          </div>
+          <span style={{ fontSize: '0.65rem', letterSpacing: '0.3em', color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase', paddingTop: '0.25rem' }}>
+            {filtered.length} {filtered.length === 1 ? 'evento' : 'eventos'}
+          </span>
+        </div>
+
+        {loading ? (
+          <div style={{ textAlign: 'center', padding: '6rem 0' }}>
+            <div style={{ width: '40px', height: '40px', border: '2px solid rgba(245,168,0,0.2)', borderTop: '2px solid #F5A800', borderRadius: '50%', animation: 'spin 0.8s linear infinite', margin: '0 auto' }} />
+          </div>
+        ) : filtered.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '6rem 0', color: 'rgba(255,255,255,0.15)' }}>
+            <p style={{ fontSize: '3rem', marginBottom: '1rem' }}>🎪</p>
+            <p style={{ fontSize: '1.1rem', fontFamily: "'Bebas Neue', sans-serif", letterSpacing: '0.1em' }}>Nenhum evento neste período</p>
+          </div>
+        ) : (
+          <>
+            <div className="events-grid">
+              {paginated.map(event => (
+                <Link key={event.id} href={`/eventos/${event.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
+                  <div className="event-card">
+                    <div style={{ position: 'relative', overflow: 'hidden' }}>
+                      {event.image_url ? (
+                        <img src={event.image_url} alt={event.title} className="card-img" style={{ width: '100%', aspectRatio: '1/1', objectFit: 'cover', display: 'block' }} />
+                      ) : (
+                        <div style={{ width: '100%', aspectRatio: '1/1', background: '#1a1a1a', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#333', fontSize: '0.75rem' }}>SEM IMAGEM</div>
+                      )}
+                      <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.7) 0%, transparent 50%)', pointerEvents: 'none' }} />
+                      <div style={{ position: 'absolute', top: '0.75rem', right: '0.75rem', background: 'rgba(0,0,0,0.85)', color: '#F5A800', padding: '0.25rem 0.6rem', fontSize: '0.78rem', fontWeight: '700', backdropFilter: 'blur(8px)' }}>
+                        {new Date(event.date + 'T00:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }).toUpperCase()}
+                      </div>
+                    </div>
+                    <div style={{ padding: '0.9rem 1rem' }}>
+                      <p style={{ fontWeight: '700', fontSize: '0.95rem', marginBottom: '0.25rem', lineHeight: 1.3 }}>{event.title}</p>
+                      {event.location && <p style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.35)', marginBottom: '0.6rem' }}>{event.location}</p>}
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.25rem' }}>
+                        <span style={{ fontSize: '0.65rem', fontWeight: '700', letterSpacing: '0.1em', color: statusLabel[event.status]?.color || '#888', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          {event.status === 'vendas_abertas' && <span className="badge-pulse" style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#22c55e', display: 'inline-block' }} />}
+                          {statusLabel[event.status]?.label || event.status}
+                        </span>
+                        {event.promo_code && <span style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.25)' }}>Cód: <strong style={{ color: '#F5A800' }}>{event.promo_code}</strong></span>}
+                      </div>
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+
+            {/* Paginação */}
+            {totalPages > 1 && (
+              <div className="pagination">
+                <button className="page-btn" onClick={() => setCurrentPage(p => p - 1)} disabled={currentPage === 1}>‹</button>
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => (
+                  <button key={p} className={`page-btn${currentPage === p ? ' active' : ''}`} onClick={() => { setCurrentPage(p); document.getElementById('eventos').scrollIntoView({ behavior: 'smooth' }) }}>
+                    {p}
+                  </button>
+                ))}
+                <button className="page-btn" onClick={() => setCurrentPage(p => p + 1)} disabled={currentPage === totalPages}>›</button>
+              </div>
+            )}
+          </>
+        )}
+      </section>
+
+      {/* Banner WhatsApp — depois dos eventos */}
       <div style={{ background: 'linear-gradient(90deg, #F5A800 0%, #e09400 100%)', padding: '0.85rem 2.5rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem', position: 'relative', zIndex: 1 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
           <span style={{ fontSize: '1.6rem' }}>📲</span>
@@ -146,60 +297,8 @@ export default function Home() {
         <a href="https://chat.whatsapp.com" target="_blank" style={{ background: '#000', color: '#F5A800', padding: '0.65rem 1.5rem', textDecoration: 'none', fontSize: '0.72rem', fontWeight: '800', letterSpacing: '0.15em' }}>PARTICIPAR</a>
       </div>
 
-      <section id="eventos" style={{ maxWidth: '1280px', margin: '0 auto', padding: '3rem 2rem', position: 'relative', zIndex: 1 }}>
-        <div style={{ marginBottom: '2.5rem', display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
-          <div>
-            <p style={{ fontSize: '0.6rem', letterSpacing: '0.4em', color: '#F5A800', textTransform: 'uppercase', marginBottom: '0.5rem' }}>NOS4 Produções</p>
-            <h2 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 'clamp(2rem, 4vw, 3rem)', letterSpacing: '0.05em', color: '#fff', margin: 0 }}>Próximos Eventos</h2>
-          </div>
-          <span style={{ fontSize: '0.65rem', letterSpacing: '0.3em', color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase' }}>{events.length} eventos</span>
-        </div>
-
-        {loading ? (
-          <div style={{ textAlign: 'center', padding: '6rem 0' }}>
-            <div style={{ width: '40px', height: '40px', border: '2px solid rgba(245,168,0,0.2)', borderTop: '2px solid #F5A800', borderRadius: '50%', animation: 'spin 0.8s linear infinite', margin: '0 auto' }} />
-          </div>
-        ) : events.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '6rem 0', color: 'rgba(255,255,255,0.15)' }}>
-            <p style={{ fontSize: '3rem', marginBottom: '1rem' }}>🎪</p>
-            <p style={{ fontSize: '1.1rem', fontFamily: "'Bebas Neue', sans-serif", letterSpacing: '0.1em' }}>Em breve novidades!</p>
-          </div>
-        ) : (
-          <div className="events-grid">
-            {events.map(event => (
-              <Link key={event.id} href={`/eventos/${event.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
-                <div className="event-card">
-                  <div style={{ position: 'relative', overflow: 'hidden' }}>
-                    {event.image_url ? (
-                      <img src={event.image_url} alt={event.title} className="card-img" style={{ width: '100%', aspectRatio: '1/1', objectFit: 'cover', display: 'block' }} />
-                    ) : (
-                      <div style={{ width: '100%', aspectRatio: '1/1', background: '#1a1a1a', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#333', fontSize: '0.75rem' }}>SEM IMAGEM</div>
-                    )}
-                    <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.7) 0%, transparent 50%)', pointerEvents: 'none' }} />
-                    <div style={{ position: 'absolute', top: '0.75rem', right: '0.75rem', background: 'rgba(0,0,0,0.85)', color: '#F5A800', padding: '0.25rem 0.6rem', fontSize: '0.78rem', fontWeight: '700', backdropFilter: 'blur(8px)' }}>
-                      {new Date(event.date + 'T00:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }).toUpperCase()}
-                    </div>
-                  </div>
-                  <div style={{ padding: '0.9rem 1rem' }}>
-                    <p style={{ fontWeight: '700', fontSize: '0.95rem', marginBottom: '0.25rem', lineHeight: 1.3 }}>{event.title}</p>
-                    {event.location && <p style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.35)', marginBottom: '0.6rem' }}>{event.location}</p>}
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.25rem' }}>
-                      <span style={{ fontSize: '0.65rem', fontWeight: '700', letterSpacing: '0.1em', color: statusLabel[event.status]?.color || '#888', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        {event.status === 'vendas_abertas' && <span className="badge-pulse" style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#22c55e', display: 'inline-block' }} />}
-                        {statusLabel[event.status]?.label || event.status}
-                      </span>
-                      {event.promo_code && <span style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.25)' }}>Cód: <strong style={{ color: '#F5A800' }}>{event.promo_code}</strong></span>}
-                    </div>
-                  </div>
-                </div>
-              </Link>
-            ))}
-          </div>
-        )}
-      </section>
-
       <section style={{ position: 'relative', zIndex: 1, padding: '0 0 4rem' }}>
-        <div style={{ maxWidth: '1280px', margin: '0 auto', padding: '0 2rem 1.5rem' }}>
+        <div style={{ maxWidth: '1280px', margin: '0 auto', padding: '3rem 2rem 1.5rem' }}>
           <p style={{ fontSize: '0.6rem', letterSpacing: '0.4em', color: '#F5A800', textTransform: 'uppercase', marginBottom: '0.5rem' }}>O cenário</p>
           <h2 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 'clamp(1.8rem, 3vw, 2.5rem)', letterSpacing: '0.05em' }}>Rio de Janeiro</h2>
         </div>
